@@ -5,6 +5,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"strconv"
+	"time"
 )
 
 var (
@@ -145,35 +147,48 @@ var (
 	)
 )
 
+const (
+	// metricsPort is the port for prometheus metrics for cni-metrics-helper
+	prometheusMetricsPort = 2112
+)
+
+func setupPrometheusMetricsServer() *http.Server {
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/metrics", promhttp.Handler())
+	server := &http.Server{
+		Addr:         ":" + strconv.Itoa(prometheusMetricsPort),
+		Handler:      serveMux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+	return server
+}
+
 func StartPrometheusMetricsServer(){
 	log.Info("Starting prometehus metrics server for cni-metrics-helper")
-	http.ListenAndServe("localhost:2112",nil)
+	prometheusServer := setupPrometheusMetricsServer()
+	prometheusServer.ListenAndServe()
 }
 
 func init(){
-	reg := prometheus.NewRegistry()
-	promHandler := promhttp.HandlerFor(reg,promhttp.HandlerOpts{})
-
-	reg.MustRegister(awsAPILatency)
-	reg.MustRegister(awsAPIErr)
-	reg.MustRegister(awsUtilsErr)
-	reg.MustRegister(ec2ApiReq)
-	reg.MustRegister(ec2ApiErr)
-	reg.MustRegister(ipamdErr)
-	reg.MustRegister(ipamdActionsInprogress)
-	reg.MustRegister(enisMax)
-	reg.MustRegister(ipMax)
-	reg.MustRegister(reconcileCnt)
-	reg.MustRegister(addIPCnt)
-	reg.MustRegister(delIPCnt)
-	reg.MustRegister(podENIErr)
-	reg.MustRegister(enis)
-	reg.MustRegister(totalIPs)
-	reg.MustRegister(assignedIPs)
-	reg.MustRegister(forceRemovedENIs)
-	reg.MustRegister(forceRemovedIPs)
-	reg.MustRegister(totalPrefixes)
-	reg.MustRegister(ipsPerCidr)
-
-	http.Handle("/metrics",promHandler)
+	prometheus.MustRegister(awsAPILatency)
+	prometheus.MustRegister(awsAPIErr)
+	prometheus.MustRegister(awsUtilsErr)
+	prometheus.MustRegister(ec2ApiReq)
+	prometheus.MustRegister(ec2ApiErr)
+	prometheus.MustRegister(ipamdErr)
+	prometheus.MustRegister(ipamdActionsInprogress)
+	prometheus.MustRegister(enisMax)
+	prometheus.MustRegister(ipMax)
+	prometheus.MustRegister(reconcileCnt)
+	prometheus.MustRegister(addIPCnt)
+	prometheus.MustRegister(delIPCnt)
+	prometheus.MustRegister(podENIErr)
+	prometheus.MustRegister(enis)
+	prometheus.MustRegister(totalIPs)
+	prometheus.MustRegister(assignedIPs)
+	prometheus.MustRegister(forceRemovedENIs)
+	prometheus.MustRegister(forceRemovedIPs)
+	prometheus.MustRegister(totalPrefixes)
+	prometheus.MustRegister(ipsPerCidr)
 }

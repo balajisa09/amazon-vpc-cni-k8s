@@ -139,7 +139,12 @@ func main() {
 	podWatcher := metrics.NewDefaultPodWatcher(k8sClient, log)
 	var cniMetric = metrics.CNIMetricsNew(clientSet, cw, options.submitCW, log, podWatcher)
 
-	go metrics.StartPrometheusMetricsServer()
+	prometheusENV, found := os.LookupEnv("USE_PROMETHEUS")
+	if found{
+		if strings.Compare(prometheusENV, "yes") == 0 || strings.Compare(prometheusENV, "true") == 0 {
+			go metrics.StartPrometheusMetricsServer()
+		}	
+	}
 
 	// metric loop
 	for range time.Tick(time.Duration(metricUpdateInterval) * time.Second) {

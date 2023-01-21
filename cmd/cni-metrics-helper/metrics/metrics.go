@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
@@ -413,7 +415,7 @@ func metricsListGrabAggregateConvert(ctx context.Context, t metricsTarget) (map[
 	if len(targetList) > 1 {
 		resetDetected = false
 	}
-	
+
 	return families, interestingMetrics, resetDetected, nil
 }
 
@@ -421,14 +423,25 @@ func metricsListGrabAggregateConvert(ctx context.Context, t metricsTarget) (map[
 func Handler(ctx context.Context, t metricsTarget) {
 	families, interestingMetrics, resetDetected, err := metricsListGrabAggregateConvert(ctx, t)
 
-	updatePromMetrics(interestingMetrics)
-
 	if err != nil || resetDetected {
 		t.getLogger().Infof("Skipping 1st poll after reset, error: %v", err)
 	}
 
-	cw := t.getCWMetricsPublisher()
-	produceCloudWatchMetrics(t, families, interestingMetrics, cw)
+	cwENV, found := os.LookupEnv("USE_CLOUDWATCH")
+	if found {
+		if strings.Compare(cwENV, "yes") == 0 || strings.Compare(cwENV, "true") == 0 {
+			cw := t.getCWMetricsPublisher()
+			produceCloudWatchMetrics(t, families, interestingMetrics, cw)
+		}
+	}
+
+	prometheusENV, found := os.LookupEnv("USE_PROMETHEUS")
+	if found{
+		if strings.Compare(prometheusENV, "yes") == 0 || strings.Compare(prometheusENV, "true") == 0 {
+			//updating prometheus metrics fetched from the aws-node prometheus servers
+			updatePromMetrics(interestingMetrics)
+		}	
+	}
 }
 
 func updatePromMetrics(interestingMetrics map[string]metricsConvert){
